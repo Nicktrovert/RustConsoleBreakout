@@ -64,15 +64,19 @@ fn clear_console(){
     cursor.goto(1, 1).expect("");
 }
 
-fn main() {
-    let mut obstacleList: Vec<Vec<Obstacle>> = Vec::new();
-    for _i in 1..13{
+fn InitializeNew_SetOf_Obstacles(rows: i32, columns: i32) -> vec<vec<Obstacle>> {
+    let mut obstacleList: vec<vec<Obstacle>> = Vec::new();
+    for _i in 1..rows{
         let mut obstacleListElement: Vec<Obstacle> = Vec::new();
-        for _j in 1..113 / 4 - 2{
-            obstacleListElement.push(Obstacle::new());
+        for _j in 1..columns / Obstacle::get_content().to_string().len() - 2{
+ obstacleListElement.push(Obstacle::new());
         }
         obstacleList.push(obstacleListElement);
     }
+}
+
+fn main() {
+    let mut obstacleList: Vec<Vec<Obstacle>> = Vec::new();
     let cursor: TerminalCursor = cursor();
     while terminal().size().unwrap() != (113, 31){
         cursor.goto(0, 0).expect("");
