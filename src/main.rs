@@ -65,7 +65,14 @@ fn clear_console(){
 }
 
 fn main() {
-    let obstacleList: HashSet<Obstacle> = HashSet::new();
+    let mut obstacleList: Vec<Vec<Obstacle>> = Vec::new();
+    for _i in 1..13{
+        let mut obstacleListElement: Vec<Obstacle> = Vec::new();
+        for _j in 1..113 / 4 - 2{
+            obstacleListElement.push(Obstacle::new());
+        }
+        obstacleList.push(obstacleListElement);
+    }
     let cursor: TerminalCursor = cursor();
     while terminal().size().unwrap() != (113, 31){
         cursor.goto(0, 0).expect("");
