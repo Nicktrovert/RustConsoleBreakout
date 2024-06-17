@@ -73,6 +73,7 @@ fn InitializeNew_SetOf_Obstacles(rows: i32, columns: i32) -> vec<vec<Obstacle>> 
         }
         obstacleList.push(obstacleListElement);
     }
+    return obstacleList;
 }
 
 fn main() {
