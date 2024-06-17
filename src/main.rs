@@ -18,7 +18,7 @@ impl Obstacle{
     fn new() -> Obstacle {
         return Obstacle{
             coords: (0, 0),
-            content: "████",
+            content: Obstacle::get_content().to_string(),
         }
     }
 }
