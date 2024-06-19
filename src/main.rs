@@ -33,44 +33,13 @@ impl Obstacle{
     }
 }
 
-
-static console_interface: &str = "╔═══════════════════════════════════════════════════════════════════════════════════════════════════════════════╗\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                       O                                                       ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                                                                               ║\n\
-                                  ║                                                     ▀▀▀▀                                                      ║\n\
-                                  ╠───────────────────────────────────────────────────────────────────────────────────────────────────────────────╣\n\
-                                  ║   <                                                                                                       >   ║\n\
-                                  ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════════════╝";
-
 fn clear_console(){
     print!("{esc}c", esc = 27 as char);
     print!("\x1B[2J\x1B[1;1H");
-    unsafe { print!("{}", console_interface.to_string()); }
-    stdout().execute(MoveTo(1, 1)).expect("");
+    let mut stdout = BufWriter::with_capacity(terminal::size().unwrap().0 as usize * terminal::size().unwrap().1 as usize * 100, stdout());
+    render_canvas(&mut stdout);
+    write!(stdout, "{}", MoveTo(1, 1)).expect("");
+    stdout.flush().unwrap();
 }
 
 fn InitializeNew_SetOf_Obstacles(rows: i32, columns: i32) -> Vec<Vec<Obstacle>> {
@@ -82,102 +51,93 @@ fn InitializeNew_SetOf_Obstacles(rows: i32, columns: i32) -> Vec<Vec<Obstacle>> 
                 coords: ((j * ((Obstacle::get_default_content().to_string().chars().count() as i32) + 1) - 3) as i16, i as i16),
                 content: Obstacle::get_default_content(),
             };
- obstacleListElement.push(new_obstacle);
+            obstacleListElement.push(new_obstacle);
         }
         obstacleList.push(obstacleListElement);
     }
     return obstacleList;
 }
 
-fn Render_Game(obstacles_list: &Vec<Vec<Obstacle>>){
-    Render_Canvas();
-    Render_Obstacles(obstacles_list);
+fn render_game(obstacles_list: &mut Vec<Vec<Obstacle>>){
+    let mut stdout = BufWriter::with_capacity(terminal::size().unwrap().0 as usize * terminal::size().unwrap().1 as usize * 100, stdout());
 
+    render_canvas(&mut stdout);
+    render_obstacles(obstacles_list, &mut stdout);
+
+    write!(stdout, "{}", MoveTo(0, 0)).expect("");
 }
 
-fn Render_Obstacles(obstacles_list: &Vec<Vec<Obstacle>>){
+fn render_obstacles(obstacles_list: &mut Vec<Vec<Obstacle>>, writer: &mut BufWriter<Stdout>){
     let color_vec = vec!["red", "green", "blue", "yellow", "magenta", "orange"];
+    let mut y = 0;
     let mut color_iterator = 0;
     for Obstacles in obstacles_list {
         for obstacle in Obstacles{
-            stdout().execute(crossterm::cursor::MoveTo(obstacle.coords.0 as u16, obstacle.coords.1 as u16)).expect("");
-            write!(stdout(), "{}", obstacle.content.color(color_vec[color_iterator % color_vec.iter().count()])).expect("");
+            if (obstacle.coords.1 != y){
+                y = obstacle.coords.1;
+                write!(writer, "{}", crossterm::cursor::MoveTo(2, obstacle.coords.1 as u16)).expect("");
+            }
+            write!(writer, "{} ", obstacle.content.color(color_vec[color_iterator % color_vec.iter().count()])).expect("");
             color_iterator += 1;
         }
         color_iterator += 1;
     }
-    stdout().flush().unwrap();
 }
 
-fn Render_Canvas(){
-    let time_now: SystemTime = SystemTime::now();
-    let mut stringToPrint = "".to_string();
-    stdout().execute(MoveTo(0, 0)).expect("");
-    for i in 0..terminal::size().unwrap().1 - 1{
-        for j in 0..terminal::size().unwrap().0 - 1{
+fn render_canvas(writer: &mut BufWriter<Stdout>) {
+    write!(writer, "{}", MoveTo(0, 0)).expect("");
+    let mut string_to_print = String::new();
+    let (width, height) = terminal::size().unwrap();
 
-            let mut charToPrint = ' ';
+    for i in 0..height {
+        for j in 0..width {
+            let mut char_to_print = ' ';
 
-            if ((i == 0 || i == terminal::size().unwrap().1 || i == (terminal::size().unwrap().1) - 3)){
-                if (j != 0 && j != terminal::size().unwrap().0 && i != terminal::size().unwrap().1 - 1){
-                    stringToPrint += ("═").as_str();
-                    continue;
+            match (i, j) {
+                (0, 0) => char_to_print = '╔',
+                (0, w) if w == width - 1 => char_to_print = '╗',
+                (h, 0) if h == height - 1 => char_to_print = '╚',
+                (h, w) if h == height - 1 && w == width - 1 => char_to_print = '╝',
+                (h, w) if h == height - 3 => {
+                    if w == 0 || w == width - 1 {
+                        char_to_print = if w == 0 { '╠' } else { '╣' };
+                    } else {
+                        char_to_print = '═';
+                    }
                 }
-                else if (i == terminal::size().unwrap().1 - 3 && j == 0){
-                    charToPrint = '╠';
-                }
-                else if (i == terminal::size().unwrap().1 - 3 && j == terminal::size().unwrap().0){
-                    charToPrint = '╣';
-                }
-                if (i == 0 && j == 0){
-                    charToPrint = '╔';
-                }
-                else if (i == 0  && j == terminal::size().unwrap().0){
-                    charToPrint = '╗';
-                }
-                if (i == terminal::size().unwrap().1 && j == 0){
-                    charToPrint = '╚';
-                }
-                else if (i == terminal::size().unwrap().1 && j == terminal::size().unwrap().0){
-                    charToPrint = '╝';
+                (h, w) | (h, w) if w == 0 || w == width - 1 => char_to_print = '║',
+                _ => {
+                    if (i == 0 || i == height - 1) && (j != 0 && j != width - 1) {
+                        char_to_print = '═';
+                    }
                 }
             }
-            else if (j == 0 || j == terminal::size().unwrap().0){
-                charToPrint = '║';
-            }
 
-            stringToPrint += charToPrint.to_string().as_str();
+            string_to_print.push(char_to_print);
         }
-        if (i != terminal::size().unwrap().1){
-            stringToPrint += "\n";
+        if i != height - 1 {
+            string_to_print.push('\n');
         }
     }
-    write!(stdout(), "{}", stringToPrint).expect("");
-    stdout().flush().unwrap();
-    let _ = write!(stdout(), "{0} seconds passed", time_now.elapsed().unwrap().as_secs_f64());
+
+    write!(writer, "{}", string_to_print).expect("");
 }
 
-fn print_events() -> Result<()> {
-        // Wait up to 1s for another event
-        if poll(Duration::from_millis(10))? {
-            // It's guaranteed that read() wont block if `poll` returns `Ok(true)`
-            let event =  crossterm::event::read()?;
 
-            stdout().execute(MoveTo(39, 29)).expect("");
+fn print_events() -> String {
+        if poll(Duration::from_millis(0)).expect("") {
+            let event =  crossterm::event::read().unwrap();
+
+            write!(stdout(), "{}", MoveTo(terminal::size().unwrap().0 / 3, terminal::size().unwrap().1 - 2)).expect("");
             write!(stdout(), "Event::{:?}\r", event).expect("");
 
-            /*if event == Event::Key(KeyCode::Char('c').into()) {
-                println!("Cursor position: {:?}\r", position());
-            }
-
             if event == Event::Key(KeyCode::Esc.into()) {
-                break;
-            }*/
+                return "esc".to_string();
+            }
         } else {
             // Timeout expired, no event for 1s
         }
-
-    Ok(())
+    return "".to_string();
 }
 
 fn main() {
@@ -195,12 +155,23 @@ fn main() {
     }
     clear_console();
     loop{
-        Render_Game(&obstacleList);
-        let _ = print_events();
+        let time_now = std::time::Instant::now();
+        render_game(&mut obstacleList);
+        match (print_events().to_lowercase().as_str()){
+            "esc" => break,
+            "left" | "a" => continue,
+            "right" | "d" => continue,
+            _ => {}
+        }
+        write!(stdout(), "{}", MoveTo(0, 0)).expect("");
+        let elapsed_seconds = time_now.elapsed().as_secs_f64();
+        write!(stdout(), "{} seconds passed", elapsed_seconds).expect("");
+        stdout().flush().unwrap();
     }
     disable_raw_mode().expect("");
     clear_console();
-    stdout().execute(MoveTo(39, 29)).expect("");
-    write!(stdout(), "Press enter to close console...").expect("");
+    stdout().execute(MoveTo(terminal::size().unwrap().0 / 3, terminal::size().unwrap().1 - 2)).expect("");
+    write!(stdout(), "Press key to close...").expect("");
     stdout().flush().unwrap();
+    let _ = crossterm::event::read().unwrap();
 }
