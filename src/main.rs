@@ -4,14 +4,51 @@ extern crate kernel32;
 use std::*;
 use std::io::*;
 use std::time::*;
+use std::ptr;
+use mouse_position::mouse_position::{Mouse};
 use crossterm::*;
 use colored::Colorize;
 use crossterm::cursor::{MoveTo};
 use crossterm::event::{Event, KeyCode, poll};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
+struct GameData{
+    obstacle_matrix: Vec<Vec<Obstacle>>,
+    bouncer: Bouncer,
+    ball: String,
+}
+impl GameData{
+
+}
+
+struct Bouncer{
+    coords: (i16, i16),
+    width: i16,
+    content: String,
+}
+impl Bouncer{
+
+}
+
+struct Ball{
+    coords: (i16, i16),
+    velocity: (i16, i16),
+    content: String,
+}
+impl Ball{
+    fn is_colliding(self, other: Obstacle) -> bool{
+        let is_in_range_lon = self.coords.0 >= other.coords.0 && self.coords.0 <= other.coords.0 + other.width;
+        let is_in_range_lat = self.coords.1 == other.coords.1;
+        if is_in_range_lat && is_in_range_lon{
+            return true;
+        }
+        return false;
+    }
+}
+
 struct Obstacle{
     coords: (i16, i16),
+    width: i16,
     content: String,
 }
 
@@ -45,6 +82,7 @@ fn initialize_new_set_of_obstacles(rows: i32, columns: i32) -> Vec<Vec<Obstacle>
             let new_obstacle = Obstacle{
                 coords: ((j * ((Obstacle::get_default_content().to_string().chars().count() as i32) + 1) - 3) as i16, i as i16),
                 content: Obstacle::get_default_content(),
+                width: Obstacle::get_default_content().len() as i16,
             };
             obstacle_list_element.push(new_obstacle);
         }
@@ -167,6 +205,8 @@ async fn on_tick(obstacle_list: &mut Vec<Vec<Obstacle>>) -> Duration {
 async fn main() {
     enable_raw_mode().expect("");
     let mut obstacle_list: Vec<Vec<Obstacle>> = initialize_new_set_of_obstacles(16, 113);
+
+    //Ensure Correct Terminal Size
     while terminal::size().unwrap() != (113, 31){
         stdout().execute(MoveTo(0, 0)).expect("");
         println!("Current Terminal Size: X={0};Y={1}", terminal::size().unwrap().0, terminal::size().unwrap().1);
@@ -177,8 +217,10 @@ async fn main() {
         print!("{esc}c", esc = 27 as char);
         print!("\x1B[2J\x1B[1;1H");
     }
+
     clear_console();
 
+    //Main Game Loop
     let refresh_rate = 30;
     let millis_per_second = 1000;
     let mut delay = tokio::time::interval(std::time::Duration::from_millis(&millis_per_second / refresh_rate));

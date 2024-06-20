@@ -10,4 +10,5 @@ colored = "2.1.0"
 winapi = "*"
 user32-sys = "*"
 kernel32-sys = "*"
+mouse_position = "*"
 tokio = { version = "1.38.0", features = ["rt", "rt-multi-thread", "macros", "time"] }
