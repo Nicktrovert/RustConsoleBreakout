@@ -14,6 +14,7 @@ use colored::Colorize;
 use crossterm::cursor::{MoveTo, position};
 use crossterm::event::{EnableMouseCapture, Event, KeyCode, poll};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use tokio::*;
 
 struct Obstacle{
     coords: (i16, i16),
@@ -140,9 +141,10 @@ fn print_events() -> String {
     return "".to_string();
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     enable_raw_mode().expect("");
-    let mut obstacleList: Vec<Vec<Obstacle>> = InitializeNew_SetOf_Obstacles(23, 113);
+    let mut obstacleList: Vec<Vec<Obstacle>> = InitializeNew_SetOf_Obstacles(16, 113);
     while terminal::size().unwrap() != (113, 31){
         stdout().execute(MoveTo(0, 0)).expect("");
         println!("Current Terminal Size: X={0};Y={1}", terminal::size().unwrap().0, terminal::size().unwrap().1);
@@ -154,24 +156,40 @@ fn main() {
         print!("\x1B[2J\x1B[1;1H");
     }
     clear_console();
-    loop{
-        let time_now = std::time::Instant::now();
-        render_game(&mut obstacleList);
-        match (print_events().to_lowercase().as_str()){
-            "esc" => break,
-            "left" | "a" => continue,
-            "right" | "d" => continue,
-            _ => {}
+
+    let refresh_rate = 30;
+    let millis_per_second = 1000;
+    let mut delay = tokio::time::interval(std::time::Duration::from_millis(&millis_per_second / refresh_rate));
+    loop {
+        delay.tick().await;
+        let time_to_run = on_tick(&mut obstacleList).await;
+        if (time_to_run.as_millis() == 0){
+            break;
         }
-        write!(stdout(), "{}", MoveTo(0, 0)).expect("");
-        let elapsed_seconds = time_now.elapsed().as_secs_f64();
-        write!(stdout(), "{} seconds passed", elapsed_seconds).expect("");
-        stdout().flush().unwrap();
+        let calculated_delay_offset = time_to_run.as_secs() * 1000;
+        delay = tokio::time::interval(std::time::Duration::from_millis((millis_per_second - calculated_delay_offset) / refresh_rate));
     }
+
     disable_raw_mode().expect("");
     clear_console();
     stdout().execute(MoveTo(terminal::size().unwrap().0 / 3, terminal::size().unwrap().1 - 2)).expect("");
     write!(stdout(), "Press key to close...").expect("");
     stdout().flush().unwrap();
     let _ = crossterm::event::read().unwrap();
+}
+
+async fn on_tick(mut obstacleList: &mut Vec<Vec<Obstacle>>) -> Duration {
+        let time_now = std::time::Instant::now();
+        render_game(&mut obstacleList);
+        match (print_events().to_lowercase().as_str()){
+            "esc" => return Duration::from_millis(0),
+            "left" | "a" => return Duration::from_millis(0),
+            "right" | "d" => return Duration::from_millis(0),
+            _ => {}
+        }
+        write!(stdout(), "{}", MoveTo(0, 0)).expect("");
+        let elapsed_seconds = time_now.elapsed().as_secs_f64();
+        write!(stdout(), "{} seconds passed", elapsed_seconds).expect("");
+        stdout().flush().unwrap();
+        return time_now.elapsed();
 }
