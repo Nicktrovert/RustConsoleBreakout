@@ -9,6 +9,5 @@ crossterm = "0.19.0"
 colored = "2.1.0"
 winapi = "*"
 user32-sys = "*"
-keylogger = "0.2.1"
 kernel32-sys = "*"
 tokio = { version = "1.38.0", features = ["rt", "rt-multi-thread", "macros", "time"] }
