@@ -4,8 +4,6 @@ extern crate kernel32;
 use std::*;
 use std::io::*;
 use std::time::*;
-use std::ptr;
-use mouse_position::mouse_position::{Mouse};
 use crossterm::*;
 use colored::Colorize;
 use crossterm::cursor::{MoveTo};
@@ -15,7 +13,7 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 struct GameData{
     obstacle_matrix: Vec<Vec<Obstacle>>,
     bouncer: Bouncer,
-    ball: String,
+    ball: Ball,
 }
 impl GameData{
 
@@ -27,7 +25,9 @@ struct Bouncer{
     content: String,
 }
 impl Bouncer{
-
+    fn do_movement(&mut self, direction: i16){
+        self.coords = (self.coords.0 - direction.clamp(-1, 1), self.coords.1);
+    }
 }
 
 struct Ball{
@@ -36,7 +36,7 @@ struct Ball{
     content: String,
 }
 impl Ball{
-    fn is_colliding(self, other: Obstacle) -> bool{
+    fn is_colliding(&self, other: Obstacle) -> bool{
         let is_in_range_lon = self.coords.0 >= other.coords.0 && self.coords.0 <= other.coords.0 + other.width;
         let is_in_range_lat = self.coords.1 == other.coords.1;
         if is_in_range_lat && is_in_range_lon{
@@ -157,7 +157,7 @@ fn render_canvas(writer: &mut BufWriter<Stdout>) {
 }
 
 
-fn print_events(obstacles_list: &mut Vec<Vec<Obstacle>>) -> String {
+fn get_input_events(obstacles_list: &mut Vec<Vec<Obstacle>>) -> String {
         if poll(Duration::from_millis(0)).expect("") {
             let event =  crossterm::event::read().unwrap();
 
@@ -185,13 +185,11 @@ fn print_events(obstacles_list: &mut Vec<Vec<Obstacle>>) -> String {
     return "".to_string();
 }
 
-async fn on_tick(obstacle_list: &mut Vec<Vec<Obstacle>>) -> Duration {
+async fn on_tick(game_data: &mut GameData) -> Duration {
     let time_now = std::time::Instant::now();
-    render_game(obstacle_list);
-    match print_events(obstacle_list).to_lowercase().as_str(){
+    render_game(&mut game_data.obstacle_matrix);
+    match get_input_events(&mut game_data.obstacle_matrix).to_lowercase().as_str(){
         "esc" => return Duration::from_secs(999),
-        "left" => {},
-        "right" => {},
         _ => {}
     }
     write!(stdout(), "{}", MoveTo(0, 0)).expect("");
@@ -204,7 +202,19 @@ async fn on_tick(obstacle_list: &mut Vec<Vec<Obstacle>>) -> Duration {
 #[tokio::main]
 async fn main() {
     enable_raw_mode().expect("");
-    let mut obstacle_list: Vec<Vec<Obstacle>> = initialize_new_set_of_obstacles(16, 113);
+    let mut game_data: GameData = GameData{
+        obstacle_matrix: initialize_new_set_of_obstacles(16, 113),
+        bouncer: Bouncer{
+            coords: (54, 24),
+            width: Obstacle::get_default_content().len() as i16,
+            content: Obstacle::get_default_content(),
+        },
+        ball: Ball{
+            coords: (55, 22),
+            content: "o".to_string(),
+            velocity: (0, 0),
+        },
+    };
 
     //Ensure Correct Terminal Size
     while terminal::size().unwrap() != (113, 31){
@@ -226,7 +236,7 @@ async fn main() {
     let mut delay = tokio::time::interval(std::time::Duration::from_millis(&millis_per_second / refresh_rate));
     loop {
         delay.tick().await;
-        let time_to_run = on_tick(&mut obstacle_list).await;
+        let time_to_run = on_tick(&mut game_data).await;
         if time_to_run.as_secs() == 999{
             break;
         }
