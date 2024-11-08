@@ -8,6 +8,7 @@ use crossterm::*;
 use colored::Colorize;
 use crossterm::cursor::{MoveTo};
 use crossterm::event::{Event, KeyCode, poll};
+use crossterm::event::KeyCode::Char;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 struct GameData{
@@ -68,10 +69,15 @@ impl Obstacle{
 fn clear_console(){
     print!("{esc}c", esc = 27 as char);
     print!("\x1B[2J\x1B[1;1H");
-    let mut stdout = BufWriter::with_capacity(terminal::size().unwrap().0 as usize * terminal::size().unwrap().1 as usize * 100, stdout());
-    render_canvas(&mut stdout);
-    write!(stdout, "{}", MoveTo(1, 1)).expect("");
-    stdout.flush().unwrap();
+    let (width, height) = terminal::size().unwrap();
+    let mut output: Vec<Vec<char>> = vec![vec![' '; width as usize]; height as usize];
+    //let mut stdout = BufWriter::with_capacity(height as usize * width as usize * 100, stdout());
+    render_canvas(&mut output);
+    write!(stdout(), "{}", MoveTo(0, 0)).expect("");
+    for i in output{
+        write!(stdout(), "{}", String::from_iter(i)).expect("");
+    }
+    stdout().flush().unwrap();
 }
 
 fn initialize_new_set_of_obstacles(rows: i32, columns: i32) -> Vec<Vec<Obstacle>> {
@@ -92,68 +98,70 @@ fn initialize_new_set_of_obstacles(rows: i32, columns: i32) -> Vec<Vec<Obstacle>
 }
 
 fn render_game(obstacles_list: &mut Vec<Vec<Obstacle>>){
-    let mut stdout = BufWriter::with_capacity(terminal::size().unwrap().0 as usize * terminal::size().unwrap().1 as usize * 100, stdout());
+    let (width, height) = terminal::size().unwrap();
+    let mut output: Vec<Vec<char>> = vec![vec![' '; width as usize]; height as usize];
+    //let mut stdout = BufWriter::with_capacity(terminal::size().unwrap().0 as usize * terminal::size().unwrap().1 as usize * 100, stdout());
 
-    render_canvas(&mut stdout);
-    render_obstacles(obstacles_list, &mut stdout);
+    render_canvas(&mut output);
+    render_obstacles(obstacles_list, &mut output);
 
-    write!(stdout, "{}", MoveTo(0, 0)).expect("");
+    write!(stdout(), "{}", MoveTo(0, 0)).expect("");
+    for i in output{
+        write!(stdout(), "{}", String::from_iter(i)).expect("")
+    }
 }
 
-fn render_obstacles(obstacles_list: &mut Vec<Vec<Obstacle>>, writer: &mut BufWriter<Stdout>){
-    let color_vec = vec!["red", "green", "blue", "yellow", "magenta", "orange"];
+fn render_obstacles(obstacles_list: &mut Vec<Vec<Obstacle>>, writer: &mut Vec<Vec<char>>){
+    //let color_vec = vec!["red", "green", "blue", "yellow", "magenta", "orange"]; //todo - implement color once again (I broke it)
     let mut y = 0;
+    let mut x:i16 = 0;
     let mut color_iterator = 0;
     for obstacles in obstacles_list {
         for obstacle in obstacles {
             if obstacle.coords.1 != y{
                 y = obstacle.coords.1;
-                write!(writer, "{}", crossterm::cursor::MoveTo(2, obstacle.coords.1 as u16)).expect("");
+                x = 0;
+                //write!(writer, "{}", crossterm::cursor::MoveTo(x as u16, obstacle.coords.1 as u16)).expect("");
             }
-            write!(writer, "{} ", obstacle.content.color(color_vec[color_iterator % color_vec.iter().count()])).expect("");
+            for i in 0..(obstacle.content.len() / 2 - 1) as i16{
+                //writer[y as usize][(x + i+1) as usize] = obstacle.content.color(color_vec[color_iterator % color_vec.iter().count()]).chars().nth(i as usize).unwrap();
+                if obstacle.content.chars().take(i as usize).last() != None{
+                    writer[(y) as usize][(x + i+1) as usize] = obstacle.content.chars().take(i as usize).last().unwrap();
+                }
+            }
+            x += (obstacle.content.len() / 2 - 1) as i16;
+            //write!(writer, "{} ", obstacle.content.color(color_vec[color_iterator % color_vec.iter().count()])).expect("");
+            //x += Obstacle::get_default_content().len() as i16;
             //color_iterator += 1;
         }
         color_iterator += 1;
     }
 }
 
-fn render_canvas(writer: &mut BufWriter<Stdout>) {
-    write!(writer, "{}", MoveTo(0, 0)).expect("");
-    let mut string_to_print = String::new();
+fn render_canvas(writer: &mut Vec<Vec<char>>) {
     let (width, height) = terminal::size().unwrap();
 
     for i in 0..height {
         for j in 0..width {
-            let mut char_to_print = ' ';
 
-            match (i, j) {
-                (0, 0) => char_to_print = '╔',
-                (0, w) if w == width - 1 => char_to_print = '╗',
-                (h, 0) if h == height - 1 => char_to_print = '╚',
-                (h, w) if h == height - 1 && w == width - 1 => char_to_print = '╝',
+            writer[i as usize][j as usize] = match (i, j) {
+                (0, 0) => '╔',
+                (0, w) if w == width - 1 => '╗',
+                (h, 0) if h == height - 1 => '╚',
+                (h, w) if h == height - 1 && w == width - 1 => '╝',
                 (h, w) if h == height - 3 => {
                     if w == 0 || w == width - 1 {
-                        char_to_print = if w == 0 { '╠' } else { '╣' };
+                        if w == 0 { '╠' } else { '╣' }
                     } else {
-                        char_to_print = '═';
+                        '═'
                     }
                 }
-                (_h, w) | (_h, w) if w == 0 || w == width - 1 => char_to_print = '║',
-                _ => {
-                    if (i == 0 || i == height - 1) && (j != 0 && j != width - 1) {
-                        char_to_print = '═';
-                    }
-                }
-            }
-
-            string_to_print.push(char_to_print);
-        }
-        if i != height - 1 {
-            string_to_print.push('\n');
+                (_h, w) | (_h, w) if w == 0 || w == width - 1 => '║',
+                _ if (i == 0 || i == height - 1) && (j != 0 && j != width - 1) => '═',
+                _ => ' '
+            };
         }
     }
-
-    write!(writer, "{}", string_to_print).expect("");
 }
 
 
@@ -161,8 +169,8 @@ fn get_input_events(obstacles_list: &mut Vec<Vec<Obstacle>>) -> String {
         if poll(Duration::from_millis(0)).expect("") {
             let event =  crossterm::event::read().unwrap();
 
-            write!(stdout(), "{}", MoveTo(terminal::size().unwrap().0 / 2, terminal::size().unwrap().1 - 2)).expect("");
-            write!(stdout(), "Event::{:?}\r", event).expect("");
+            //write!(stdout(), "{}", MoveTo(terminal::size().unwrap().0 / 2, terminal::size().unwrap().1 - 2)).expect("");
+            //write!(stdout(), "Event::{:?}\r", event).expect("");
 
             if event == Event::Key(KeyCode::Esc.into()) {
                 return "esc".to_string();
@@ -192,9 +200,9 @@ async fn on_tick(game_data: &mut GameData) -> Duration {
         "esc" => return Duration::from_secs(999),
         _ => {}
     }
-    write!(stdout(), "{}", MoveTo(0, 0)).expect("");
-    let elapsed_seconds = time_now.elapsed().as_secs_f64();
-    write!(stdout(), "{} seconds passed", elapsed_seconds).expect("");
+    //write!(stdout(), "{}", MoveTo(0, 0)).expect("");
+    //let elapsed_seconds = time_now.elapsed().as_secs_f64();
+    //write!(stdout(), "{} seconds passed", elapsed_seconds).expect("");
     stdout().flush().unwrap();
     return time_now.elapsed();
 }

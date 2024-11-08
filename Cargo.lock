@@ -11,6 +11,7 @@ dependencies = [
  "kernel32-sys",
  "mouse_position",
  "rand",
+ "string-builder",
  "tokio",
  "user32-sys",
  "winapi 0.3.9",
@@ -449,6 +450,12 @@ name = "smallvec"
 version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
+
+[[package]]
+name = "string-builder"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bd10a070fb1f2796a288abec42695db4682a82b6f12ffacd60fb8d5ad3a4a12"
 
 [[package]]
 name = "syn"

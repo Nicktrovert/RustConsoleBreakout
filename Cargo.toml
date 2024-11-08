@@ -11,4 +11,5 @@ winapi = "*"
 user32-sys = "*"
 kernel32-sys = "*"
 mouse_position = "*"
+string-builder = "0.2.0"
 tokio = { version = "1.38.0", features = ["rt", "rt-multi-thread", "macros", "time"] }
