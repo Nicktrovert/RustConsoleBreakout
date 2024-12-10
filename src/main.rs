@@ -132,7 +132,7 @@ fn render_obstacles(obstacles_list: &mut Vec<Vec<Obstacle>>, writer: &mut Vec<Ve
             x += (obstacle.content.len() / 2 - 1) as i16;
             //write!(writer, "{} ", obstacle.content.color(color_vec[color_iterator % color_vec.iter().count()])).expect("");
             //x += Obstacle::get_default_content().len() as i16;
-            //color_iterator += 1;
+            color_iterator += 1;
         }
         color_iterator += 1;
     }
@@ -225,7 +225,7 @@ async fn main() {
     };
 
     //Ensure Correct Terminal Size
-    /*while terminal::size().unwrap() != (113, 31){
+    while terminal::size().unwrap() != (113, 31){
         stdout().execute(MoveTo(0, 0)).expect("");
         println!("Current Terminal Size: X={0};Y={1}", terminal::size().unwrap().0, terminal::size().unwrap().1);
         println!("Expected Terminal Size: X={0};Y={1}", 113, 31);
@@ -234,7 +234,7 @@ async fn main() {
         thread::sleep(Duration::from_millis(120));
         print!("{esc}c", esc = 27 as char);
         print!("\x1B[2J\x1B[1;1H");
-    }*/
+    }
 
     clear_console();
 
