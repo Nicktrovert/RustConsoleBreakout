@@ -132,7 +132,7 @@ fn render_obstacles(obstacles_list: &mut Vec<Vec<Obstacle>>, writer: &mut Vec<Ve
             x += (obstacle.content.len() / 2 - 1) as i16;
             //write!(writer, "{} ", obstacle.content.color(color_vec[color_iterator % color_vec.iter().count()])).expect("");
             //x += Obstacle::get_default_content().len() as i16;
-            color_iterator += 1;
+            //color_iterator += 1;
         }
         color_iterator += 1;
     }
