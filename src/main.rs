@@ -70,7 +70,7 @@ fn clear_console(){
     print!("{esc}c", esc = 27 as char);
     print!("\x1B[2J\x1B[1;1H");
     let (width, height) = terminal::size().unwrap();
-    let mut output: Vec<Vec<char>> = vec![vec![' '; width as usize]; height as usize];
+    let mut output: Vec<Vec<String>> = vec![vec![" ".parse().unwrap(); width as usize]; height as usize];
     //let mut stdout = BufWriter::with_capacity(height as usize * width as usize * 100, stdout());
     render_canvas(&mut output);
     write!(stdout(), "{}", MoveTo(0, 0)).expect("");
@@ -99,7 +99,7 @@ fn initialize_new_set_of_obstacles(rows: i32, columns: i32) -> Vec<Vec<Obstacle>
 
 fn render_game(obstacles_list: &mut Vec<Vec<Obstacle>>){
     let (width, height) = terminal::size().unwrap();
-    let mut output: Vec<Vec<char>> = vec![vec![' '; width as usize]; height as usize];
+    let mut output: Vec<Vec<String>> = vec![vec![" ".parse().unwrap(); width as usize]; height as usize];
     //let mut stdout = BufWriter::with_capacity(terminal::size().unwrap().0 as usize * terminal::size().unwrap().1 as usize * 100, stdout());
 
     render_canvas(&mut output);
@@ -111,8 +111,8 @@ fn render_game(obstacles_list: &mut Vec<Vec<Obstacle>>){
     }
 }
 
-fn render_obstacles(obstacles_list: &mut Vec<Vec<Obstacle>>, writer: &mut Vec<Vec<char>>){
-    //let color_vec = vec!["red", "green", "blue", "yellow", "magenta", "orange"]; //todo - implement color once again (I broke it)
+fn render_obstacles(obstacles_list: &mut Vec<Vec<Obstacle>>, writer: &mut Vec<Vec<String>>){
+    let color_vec = vec!["red", "green", "blue", "yellow", "magenta", "orange"];
     let mut y = 0;
     let mut x:i16 = 0;
     let mut color_iterator = 0;
@@ -126,7 +126,7 @@ fn render_obstacles(obstacles_list: &mut Vec<Vec<Obstacle>>, writer: &mut Vec<Ve
             for i in 0..(obstacle.content.len() / 2 - 1) as i16{
                 //writer[y as usize][(x + i+1) as usize] = obstacle.content.color(color_vec[color_iterator % color_vec.iter().count()]).chars().nth(i as usize).unwrap();
                 if obstacle.content.chars().take(i as usize).last() != None{
-                    writer[(y) as usize][(x + i+1) as usize] = obstacle.content.chars().take(i as usize).last().unwrap();
+                    writer[(y) as usize][(x + i+1) as usize] = obstacle.content.chars().take(i as usize).last().unwrap().to_string().color(color_vec[color_iterator % color_vec.iter().count()]).to_string();
                 }
             }
             x += (obstacle.content.len() / 2 - 1) as i16;
@@ -138,27 +138,27 @@ fn render_obstacles(obstacles_list: &mut Vec<Vec<Obstacle>>, writer: &mut Vec<Ve
     }
 }
 
-fn render_canvas(writer: &mut Vec<Vec<char>>) {
+fn render_canvas(writer: &mut Vec<Vec<String>>) {
     let (width, height) = terminal::size().unwrap();
 
     for i in 0..height {
         for j in 0..width {
 
             writer[i as usize][j as usize] = match (i, j) {
-                (0, 0) => '╔',
-                (0, w) if w == width - 1 => '╗',
-                (h, 0) if h == height - 1 => '╚',
-                (h, w) if h == height - 1 && w == width - 1 => '╝',
+                (0, 0) => "╔".parse().unwrap(),
+                (0, w) if w == width - 1 => "╗".parse().unwrap(),
+                (h, 0) if h == height - 1 => "╚".parse().unwrap(),
+                (h, w) if h == height - 1 && w == width - 1 => "╝".parse().unwrap(),
                 (h, w) if h == height - 3 => {
                     if w == 0 || w == width - 1 {
-                        if w == 0 { '╠' } else { '╣' }
+                        if w == 0 { "╠".parse().unwrap() } else { "╣".parse().unwrap() }
                     } else {
-                        '═'
+                        "═".parse().unwrap()
                     }
                 }
-                (_h, w) | (_h, w) if w == 0 || w == width - 1 => '║',
-                _ if (i == 0 || i == height - 1) && (j != 0 && j != width - 1) => '═',
-                _ => ' '
+                (_h, w) | (_h, w) if w == 0 || w == width - 1 => "║".parse().unwrap(),
+                _ if (i == 0 || i == height - 1) && (j != 0 && j != width - 1) => "═".parse().unwrap(),
+                _ => " ".parse().unwrap()
             };
         }
     }
@@ -225,7 +225,7 @@ async fn main() {
     };
 
     //Ensure Correct Terminal Size
-    while terminal::size().unwrap() != (113, 31){
+    /*while terminal::size().unwrap() != (113, 31){
         stdout().execute(MoveTo(0, 0)).expect("");
         println!("Current Terminal Size: X={0};Y={1}", terminal::size().unwrap().0, terminal::size().unwrap().1);
         println!("Expected Terminal Size: X={0};Y={1}", 113, 31);
@@ -234,7 +234,7 @@ async fn main() {
         thread::sleep(Duration::from_millis(120));
         print!("{esc}c", esc = 27 as char);
         print!("\x1B[2J\x1B[1;1H");
-    }
+    }*/
 
     clear_console();
 
