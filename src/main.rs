@@ -27,7 +27,7 @@ struct Bouncer{
 }
 impl Bouncer{
     fn do_movement(&mut self, direction: i16){
-        self.coords = (self.coords.0 - direction.clamp(-1, 1), self.coords.1);
+        self.coords = ((self.coords.0 + direction.clamp(-1, 1)).clamp(0, 106), self.coords.1);
     }
 }
 
@@ -37,13 +37,53 @@ struct Ball{
     content: String,
 }
 impl Ball{
-    fn is_colliding(&self, other: Obstacle) -> bool{
-        let is_in_range_lon = self.coords.0 >= other.coords.0 && self.coords.0 <= other.coords.0 + other.width;
-        let is_in_range_lat = self.coords.1 == other.coords.1;
+    fn will_collide(&self, other: &mut Obstacle) -> bool{
+        let is_in_range_lon = self.coords.0 + self.velocity.0.clamp(-1, 1) >= other.coords.0 && self.coords.0 + self.velocity.0.clamp(-1, 1) <= other.coords.0 + other.width;
+        let is_in_range_lat = self.coords.1 + self.velocity.1.clamp(-1, 1) == other.coords.1;
         if is_in_range_lat && is_in_range_lon{
             return true;
         }
         return false;
+    }
+    fn do_movement(&mut self, obstacles: &mut Vec<Vec<Obstacle>>, bouncer: &Bouncer){
+        self.coords = (
+            (self.coords.0 +  self.velocity.0.clamp(-1, 1)).clamp(1, 110),
+            (self.coords.1 + self.velocity.1.clamp(-1, 1)).clamp(1, 28),
+        );
+        for i in 0..obstacles.len(){
+            for mut j in 0..obstacles[i].len()-1{
+                if self.will_collide(&mut obstacles[i][j]){
+                    if self.coords.1 > obstacles[i][j].coords.1 || self.coords.1 < obstacles[i][j].coords.1{
+                        self.velocity.1 *= -1;
+                    }
+                    if self.coords.0 < obstacles[i][j].coords.0 || self.coords.0 > obstacles[i][j].coords.0 + (obstacles[i][j].content.len() / 2 - 1) as i16{
+                        self.velocity.0 *= -1;
+                    }
+                    obstacles[i].remove(j);
+                    //j -= 1;
+                }
+            }
+        }
+        if (self.coords.0 == 1 && self.velocity.0 < 0) || (self.coords.0 == 109 && self.velocity.0 > 0){
+            self.velocity.0 *= -1;
+        }
+        if (self.coords.1 == 27 && self.velocity.1 > 0) || (self.coords.1 == 1 && self.velocity.1 < 0){
+            self.velocity.1 *= -1;
+        }
+
+        let mut bouncer_to_obstacle = Obstacle{
+            coords: bouncer.coords,
+            width: bouncer.width,
+            content: bouncer.content.to_string(),
+        };
+        if self.will_collide(&mut bouncer_to_obstacle){
+            if self.coords.1 > bouncer_to_obstacle.coords.1 || self.coords.1 < bouncer_to_obstacle.coords.1{
+                self.velocity.1 *= -1;
+            }
+            if self.coords.0 < bouncer_to_obstacle.coords.0 || self.coords.0 > bouncer_to_obstacle.coords.0 + (bouncer_to_obstacle.content.len() / 2 - 1) as i16{
+                self.velocity.0 *= -1;
+            }
+        }
     }
 }
 
@@ -86,7 +126,7 @@ fn initialize_new_set_of_obstacles(rows: i32, columns: i32) -> Vec<Vec<Obstacle>
         let mut obstacle_list_element: Vec<Obstacle> = Vec::new();
         for j in 1..columns / (Obstacle::get_default_content().to_string().chars().count() as i32) - 5{
             let new_obstacle = Obstacle{
-                coords: ((j * ((Obstacle::get_default_content().to_string().chars().count() as i32) + 1) - 3) as i16, i as i16),
+                coords: ((j * ((Obstacle::get_default_content().to_string().chars().count() as i32) + 1) - 4) as i16, i as i16),
                 content: Obstacle::get_default_content(),
                 width: Obstacle::get_default_content().len() as i16,
             };
@@ -97,13 +137,23 @@ fn initialize_new_set_of_obstacles(rows: i32, columns: i32) -> Vec<Vec<Obstacle>
     return obstacle_list;
 }
 
-fn render_game(obstacles_list: &mut Vec<Vec<Obstacle>>){
+fn render_game(game_data: &mut GameData){
     let (width, height) = terminal::size().unwrap();
     let mut output: Vec<Vec<String>> = vec![vec![" ".parse().unwrap(); width as usize]; height as usize];
     //let mut stdout = BufWriter::with_capacity(terminal::size().unwrap().0 as usize * terminal::size().unwrap().1 as usize * 100, stdout());
 
     render_canvas(&mut output);
-    render_obstacles(obstacles_list, &mut output);
+    render_obstacles(&mut game_data.obstacle_matrix, &mut output);
+
+    let (x, y) = game_data.bouncer.coords;
+
+    for i in 0..(game_data.bouncer.content.len() / 2 - 1) as i16{
+        output[(y) as usize][(x + i+1) as usize] = game_data.bouncer.content.chars().nth(1 as usize).unwrap().to_string();
+    }
+
+    let (x, y) = game_data.ball.coords;
+
+    output[y as usize][x as usize] = game_data.ball.content.to_string();
 
     write!(stdout(), "{}", MoveTo(0, 0)).expect("");
     for i in output{
@@ -123,13 +173,14 @@ fn render_obstacles(obstacles_list: &mut Vec<Vec<Obstacle>>, writer: &mut Vec<Ve
                 x = 0;
                 //write!(writer, "{}", crossterm::cursor::MoveTo(x as u16, obstacle.coords.1 as u16)).expect("");
             }
+            x = obstacle.coords.0;
             for i in 0..(obstacle.content.len() / 2 - 1) as i16{
                 //writer[y as usize][(x + i+1) as usize] = obstacle.content.color(color_vec[color_iterator % color_vec.iter().count()]).chars().nth(i as usize).unwrap();
                 if obstacle.content.chars().take(i as usize).last() != None{
-                    writer[(y) as usize][(x + i+1) as usize] = obstacle.content.chars().take(i as usize).last().unwrap().to_string().color(color_vec[color_iterator % color_vec.iter().count()]).to_string();
+                    writer[(y) as usize][(x + i) as usize] = obstacle.content.chars().take(i as usize).last().unwrap().to_string().color(color_vec[color_iterator % color_vec.iter().count()]).to_string();
                 }
             }
-            x += (obstacle.content.len() / 2 - 1) as i16;
+            //x += (obstacle.content.len() / 2 - 1) as i16;
             //write!(writer, "{} ", obstacle.content.color(color_vec[color_iterator % color_vec.iter().count()])).expect("");
             //x += Obstacle::get_default_content().len() as i16;
             //color_iterator += 1;
@@ -165,7 +216,7 @@ fn render_canvas(writer: &mut Vec<Vec<String>>) {
 }
 
 
-fn get_input_events(obstacles_list: &mut Vec<Vec<Obstacle>>) -> String {
+fn get_input_events() -> String {
         if poll(Duration::from_millis(0)).expect("") {
             let event =  crossterm::event::read().unwrap();
 
@@ -176,16 +227,10 @@ fn get_input_events(obstacles_list: &mut Vec<Vec<Obstacle>>) -> String {
                 return "esc".to_string();
             }
             if event == Event::Key(KeyCode::Left.into()) || event == Event::Key(KeyCode::Char('a').into()){
-                for i in 0..obstacles_list.len(){
-                    if obstacles_list[i].len() == 0{
-                        continue;
-                    }
-                    else{
-                        obstacles_list[i].remove(0);
-                        break;
-                    }
-                }
                 return "left".to_string();
+            }
+            if event == Event::Key(KeyCode::Right.into()) || event == Event::Key(KeyCode::Char('d').into()){
+                return "right".to_string();
             }
         } else {
             // Timeout expired, no event
@@ -193,11 +238,18 @@ fn get_input_events(obstacles_list: &mut Vec<Vec<Obstacle>>) -> String {
     return "".to_string();
 }
 
-async fn on_tick(game_data: &mut GameData) -> Duration {
+async fn on_tick(game_data: &mut GameData, count: i16) -> Duration {
     let time_now = std::time::Instant::now();
-    render_game(&mut game_data.obstacle_matrix);
-    match get_input_events(&mut game_data.obstacle_matrix).to_lowercase().as_str(){
+    render_game(game_data);
+
+    if (count % 10 == 0){
+        game_data.ball.do_movement(&mut game_data.obstacle_matrix, &game_data.bouncer);
+    }
+
+    match get_input_events().to_lowercase().as_str(){
         "esc" => return Duration::from_secs(999),
+        "left" => game_data.bouncer.do_movement(-1),
+        "right" => game_data.bouncer.do_movement(1),
         _ => {}
     }
     //write!(stdout(), "{}", MoveTo(0, 0)).expect("");
@@ -215,12 +267,12 @@ async fn main() {
         bouncer: Bouncer{
             coords: (54, 24),
             width: Obstacle::get_default_content().len() as i16,
-            content: Obstacle::get_default_content(),
+            content: "████".to_string(),
         },
         ball: Ball{
             coords: (55, 22),
             content: "o".to_string(),
-            velocity: (0, 0),
+            velocity: (1, -1),
         },
     };
 
@@ -239,12 +291,17 @@ async fn main() {
     clear_console();
 
     //Main Game Loop
+    let mut count = 0;
     let refresh_rate = 30;
     let millis_per_second = 1000;
     let mut delay = tokio::time::interval(std::time::Duration::from_millis(&millis_per_second / refresh_rate));
     loop {
         delay.tick().await;
-        let time_to_run = on_tick(&mut game_data).await;
+        count += 1;
+        if (count == 31){
+            count = 0;
+        }
+        let time_to_run = on_tick(&mut game_data, count).await;
         if time_to_run.as_secs() == 999{
             break;
         }
